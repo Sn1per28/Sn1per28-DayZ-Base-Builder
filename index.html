@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DayZ Base Planner</title>
+  <script src="https://unpkg.com/konva@9/konva.min.js"></script>
+  <style>
+    body { margin:0; font-family: Arial, sans-serif; background:#111; color:white; }
+    .container { display:flex; height:100vh; }
+    .sidebar {
+      width:260px;
+      background:#1b1b1b;
+      padding:15px;
+      box-sizing:border-box;
+      overflow-y:auto;
+      border-right:1px solid #333;
+    }
+    .stageWrap { flex:1; background:#0d0d0d; }
+    .button {
+      background:#2a2a2a;
+      border:1px solid #444;
+      padding:10px;
+      margin-bottom:8px;
+      cursor:pointer;
+      text-align:center;
+      border-radius:6px;
+      user-select:none;
+    }
+    .button:hover { background:#333; }
+
+    .small {
+      font-size:12px;
+      color:#bbb;
+      line-height:1.35;
+      margin: 10px 0 12px;
+      padding: 8px;
+      border: 1px solid #333;
+      border-radius: 6px;
+      background: #161616;
+      word-break: break-word;
+    }
+
+    input[type="file"] { display:none; }
+  </style>
+</head>
+
+<body>
+<div class="container">
+
+  <div class="sidebar">
+    <h2>Base Planner</h2>
+
+    <!-- Load base image (Android-safe) -->
+    <div class="button" onclick="document.getElementById('imgPicker').click()">
+      Load Base Image
+    </div>
+    <input id="imgPicker" type="file" accept="image/*" />
+
+    <div id="status" class="small">
+      Tip: Tap “Load Base Image” and pick your base image from your phone.
+      <br><br>
+      (Android/Chrome often blocks auto-loading images when opened as <b>content://</b>.)
+    </div>
+
+    <hr style="border:1px solid #333; margin:15px 0;">
+
+    <!-- Your existing pieces -->
+    <div class="button" onclick="addPiece('Barracks')">Add Barracks</div>
+    <div class="button" onclick="addPiece('Shed')">Add Shed</div>
+    <div class="button" onclick="addPiece('Watchtower')">Add Watchtower</div>
+
+    <!-- NEW: ATC Small -->
+    <div class="button" onclick="addATCSmall()">Add ATC Small</div>
+    <input id="atcSmallPicker" type="file" accept="image/*" />
+
+    <hr style="border:1px solid #333; margin:15px 0;">
+
+    <div class="button" onclick="rotateSelected()">Rotate 90°</div>
+    <div class="button" onclick="deleteSelected()">Delete</div>
+    <div class="button" onclick="exportLayout()">Export JSON</div>
+  </div>
+
+  <div id="stageWrap" class="stageWrap"></div>
+
+</div>
+
+<script>
+  const statusEl = document.getElementById('status');
+
+  const stage = new Konva.Stage({
+    container: 'stageWrap',
+    width: window.innerWidth - 260,
+    height: window.innerHeight
+  });
+
+  const layer = new Konva.Layer();
+  stage.add(layer);
+
+  let selectedShape = null;
+
+  // Background image + node
+  const baseImage = new Image();
+  let backgroundNode = null;
+
+  function setStatus(msg) {
+    statusEl.innerHTML = msg;
+  }
+
+  function drawBackground(img) {
+    if (backgroundNode) backgroundNode.destroy();
+
+    const scale = Math.min(
+      stage.width() / img.width,
+      stage.height() / img.height
+    );
+
+    backgroundNode = new Konva.Image({
+      x: (stage.width() - img.width * scale) / 2,
+      y: (stage.height() - img.height * scale) / 2,
+      image: img,
+      width: img.width * scale,
+      height: img.height * scale,
+      listening: false
+    });
+
+    layer.add(backgroundNode);
+    backgroundNode.moveToBottom();
+    layer.draw();
+  }
+
+  // Android-safe: user picks base image from device
+  document.getElementById('imgPicker').addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    setStatus(`Loading base: <b>${file.name}</b>...`);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      baseImage.onload = () => {
+        drawBackground(baseImage);
+        setStatus(`Loaded base: <b>${file.name}</b><br>Now place buildings on top.`);
+      };
+      baseImage.onerror = () => {
+        setStatus(`❌ Failed to load base: <b>${file.name}</b><br>Try a different image or re-save the JPG/PNG.`);
+      };
+      baseImage.src = reader.result; // data URL
+    };
+    reader.readAsDataURL(file);
+  });
+
+  // OPTIONAL: try auto-load (often blocked on Android content://)
+  (function tryAutoLoad() {
+    const guessName = "image-Tier%202%20Base.jpg"; // URL-encoded spaces
+    baseImage.onload = () => {
+      drawBackground(baseImage);
+      setStatus(`Auto-loaded base: <b>image-Tier 2 Base.jpg</b>`);
+    };
+    baseImage.onerror = () => {
+      setStatus(`Tap “Load Base Image” to select your base image.<br><br>(Auto-load blocked by Android content://)`);
+    };
+    baseImage.src = "./" + guessName;
+  })();
+
+  // ===== Pieces (Rectangles) =====
+  function addPiece(type) {
+    const rect = new Konva.Rect({
+      x: 300,
+      y: 200,
+      width: 120,
+      height: 80,
+      stroke: '#00ffff',
+      strokeWidth: 3,
+      draggable: true,
+      name: type
+    });
+
+    // FIX: mobile needs tap
+    rect.on('click tap', function() {
+      selectedShape = rect;
+    });
+
+    // Also select when drag starts (helps on some phones)
+    rect.on('dragstart', function() {
+      selectedShape = rect;
+    });
+
+    layer.add(rect);
+    layer.draw();
+  }
+
+  // ===== NEW: ATC Small (Image) =====
+  let atcSmallImg = null;
+
+  document.getElementById('atcSmallPicker').addEventListener('change', (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+
+    setStatus(`Loading ATC Small image: <b>${file.name}</b>...`);
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      const img = new Image();
+      img.onload = () => {
+        atcSmallImg = img;
+        setStatus(`✅ ATC Small image set: <b>${file.name}</b><br>Tap “Add ATC Small” to place it.`);
+      };
+      img.onerror = () => {
+        setStatus(`❌ Failed to load ATC Small image: <b>${file.name}</b><br>Try re-saving it as JPG/PNG.`);
+      };
+      img.src = reader.result; // data URL
+    };
+    reader.readAsDataURL(file);
+  });
+
+  function addATCSmall() {
+    // First time: ask user to pick the image (Android-safe)
+    if (!atcSmallImg) {
+      document.getElementById('atcSmallPicker').click();
+      return;
+    }
+
+    // Default size on canvas (tweak if you want)
+    const w = 180;
+    const h = Math.round((atcSmallImg.height / atcSmallImg.width) * w);
+
+    const node = new Konva.Image({
+      x: 300,
+      y: 200,
+      image: atcSmallImg,
+      width: w,
+      height: h,
+      draggable: true,
+      name: 'ATC Small'
+    });
+
+    // FIX: mobile needs tap
+    node.on('click tap', function() {
+      selectedShape = node;
+    });
+
+    // Also select when drag starts
+    node.on('dragstart', function() {
+      selectedShape = node;
+    });
+
+    layer.add(node);
+    layer.draw();
+  }
+
+  // ===== Rotate / Delete =====
+  function rotateSelected() {
+    if (!selectedShape) {
+      alert("Tap a building first to select it.");
+      return;
+    }
+    selectedShape.rotation(selectedShape.rotation() + 90);
+    layer.draw();
+  }
+
+  function deleteSelected() {
+    if (!selectedShape) return;
+    selectedShape.destroy();
+    selectedShape = null;
+    layer.draw();
+  }
+
+  // ===== Export (Rects + Images) =====
+  function exportLayout() {
+    const items = [];
+
+    layer.getChildren().forEach(function(node) {
+      // Skip background
+      if (backgroundNode && node === backgroundNode) return;
+
+      // Only export Rects and Images
+      const isRect = (node instanceof Konva.Rect);
+      const isImg  = (node instanceof Konva.Image);
+      if (!isRect && !isImg) return;
+
+      items.push({
+        type: node.name() || (isImg ? "Image" : "Rect"),
+        kind: isImg ? "image" : "rect",
+        x: node.x(),
+        y: node.y(),
+        rotation: node.rotation(),
+        width: node.width(),
+        height: node.height()
+      });
+    });
+
+    const data = JSON.stringify(items, null, 2);
+    const blob = new Blob([data], {type: "application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "layout.json";
+    a.click();
+  }
+
+  // ===== Resize =====
+  window.addEventListener('resize', () => {
+    stage.width(window.innerWidth - 260);
+    stage.height(window.innerHeight);
+    stage.draw();
+
+    if (baseImage && baseImage.width && baseImage.height) {
+      drawBackground(baseImage);
+    }
+  });
+</script>
+</body>
+</html>
