@@ -1,218 +1,262 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>DayZ Base Planner</title>
-<script src="https://unpkg.com/konva@9/konva.min.js"></script>
-
-<style>
-body { margin:0; background:#111; color:#fff; font-family:Arial; }
-.container { display:flex; height:100vh; }
-.sidebar {
-  width:280px;
-  background:#1b1b1b;
-  padding:15px;
-  overflow-y:auto;
-  border-right:1px solid #333;
-}
-.stageWrap { flex:1; background:#0d0d0d; }
-
-select, button, input[type="range"] {
-  width:100%;
-  padding:10px;
-  margin-bottom:10px;
-  border-radius:8px;
-  border:1px solid #333;
-  background:#222;
-  color:white;
-}
-
-button { cursor:pointer; background:#2a2a2a; }
-button:hover { background:#333; }
-
-.label { font-size:12px; color:#aaa; margin-bottom:5px; }
-.small { font-size:12px; color:#bbb; line-height:1.35; margin: 6px 0 10px; }
-hr { border:0; border-top:1px solid #333; margin:15px 0; }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DayZ Base Planner</title>
+  <script src="https://unpkg.com/konva@9/konva.min.js"></script>
+  <style>
+    body { margin:0; background:#111; color:#fff; font-family:Arial, sans-serif; }
+    .container { display:flex; height:100vh; }
+    .sidebar {
+      width:280px;
+      background:#1b1b1b;
+      padding:15px;
+      overflow-y:auto;
+      border-right:1px solid #333;
+      box-sizing:border-box;
+    }
+    .stageWrap { flex:1; background:#0d0d0d; }
+    select, button, input[type="range"]{
+      width:100%;
+      padding:10px;
+      margin-bottom:10px;
+      border-radius:8px;
+      border:1px solid #333;
+      background:#222;
+      color:#fff;
+      box-sizing:border-box;
+    }
+    button { cursor:pointer; background:#2a2a2a; }
+    button:hover { background:#333; }
+    .label { font-size:12px; color:#aaa; margin-bottom:5px; }
+    hr { border:0; border-top:1px solid #333; margin:15px 0; }
+    #msg { font-size:12px; line-height:1.35; color:#bbb; margin:8px 0 12px 0; white-space:pre-wrap; }
+    .ok { color:#7CFC98; }
+    .err { color:#ff6b6b; }
+  </style>
 </head>
 
 <body>
-<div class="container">
+  <div class="container">
+    <div class="sidebar">
+      <h2 style="margin:0 0 10px 0;">Base Planner</h2>
 
-<div class="sidebar">
-<h2>Base Planner</h2>
+      <div class="label">Choose Base</div>
+      <select id="baseSelect">
+        <option value="Tier2.png">Tier 2</option>
+        <option value="Tier3.png">Tier 3</option>
+        <option value="Tier4.png">Tier 4</option>
+      </select>
+      <button onclick="loadBase()">Load Base</button>
 
-<div class="label">Choose Base</div>
-<select id="baseSelect">
-  <option value="Tier2.png">Tier 2</option>
-  <option value="Tier3.png">Tier 3</option>
-  <option value="Tier4.png">Tier 4</option>
-</select>
+      <div id="msg"></div>
 
-<button onclick="loadBase()">Load Base</button>
+      <hr>
 
-<div id="msg" class="small"></div>
+      <div class="label">Large Structures</div>
+      <select id="largeSelect">
+        <option value="3DoorGarage.png">3 Door Garage</option>
+        <option value="ATCBig.png">ATC Big</option>
+        <option value="ATCSmall.png">ATC Small</option>
+        <option value="BarnBig.png">Barn Big</option>
+        <option value="BarnSmall.png">Barn Small</option>
+        <option value="ConstructionHall.png">Construction Hall</option>
+        <option value="ConstructionHallBrick.png">Construction Hall Brick</option>
+        <option value="GarageBig.png">Garage Big</option>
+        <option value="GreenHangar.png">Green Hangar</option>
+        <option value="Greenhouse.png">Greenhouse</option>
+        <option value="HQ.png">HQ</option>
+        <option value="ShedBig.png">Shed Big</option>
+        <option value="Small3DoorGarage.png">Small 3 Door Garage</option>
+        <option value="SmallGarage.png">Small Garage</option>
+        <option value="TankBunker.png">Tank Bunker</option>
+      </select>
+      <button onclick="placeFromSelect('largeSelect')">Place Large</button>
 
-<hr>
+      <hr>
 
-<div class="label">Large Structures</div>
-<select id="largeSelect">
-  <option value="ATCBuilding.png">ATC Building</option>
-</select>
-<button onclick="placeStructure()">Place Large</button>
+      <div class="label">Small Structures</div>
+      <select id="smallSelect">
+        <option value="SmallGarage.png">Small Garage</option>
+        <option value="Greenhouse.png">Greenhouse</option>
+      </select>
+      <button onclick="placeFromSelect('smallSelect')">Place Small</button>
 
-<hr>
+      <hr>
 
-<div class="label">Selected Width</div>
-<input type="range" min="60" max="600" value="240" id="sizeSlider" disabled>
+      <div class="label">Selected Width</div>
+      <input type="range" min="60" max="700" value="240" id="sizeSlider" disabled>
 
-<button onclick="rotateSelected()">Rotate 90°</button>
-<button onclick="deleteSelected()">Delete</button>
-<button onclick="exportLayout()">Export JSON</button>
+      <button onclick="rotateSelected()">Rotate 90°</button>
+      <button onclick="deleteSelected()">Delete</button>
+      <button onclick="exportLayout()">Export JSON</button>
+    </div>
 
-</div>
-
-<div id="stageWrap" class="stageWrap"></div>
-</div>
+    <div id="stageWrap" class="stageWrap"></div>
+  </div>
 
 <script>
-const stage = new Konva.Stage({
-  container: 'stageWrap',
-  width: window.innerWidth - 280,
-  height: window.innerHeight
-});
-const layer = new Konva.Layer();
-stage.add(layer);
+  const sidebarWidth = 280;
 
-let selectedShape = null;
-let backgroundNode = null;
-
-const msg = document.getElementById("msg");
-function showMsg(html){ msg.innerHTML = html; }
-
-// Loads an image with onerror + proper URL encoding for spaces
-function loadImg(src, onOk){
-  const img = new Image();
-  img.onload = () => onOk(img);
-  img.onerror = () => showMsg(
-    `❌ Could not load: <b>${src}</b><br>
-     This usually means the image is not uploaded to GitHub Pages in the same folder as index.html,
-     or the filename/case doesn't match exactly.`
-  );
-  img.src = encodeURI(src);
-}
-
-function loadBase(){
-  const src = document.getElementById("baseSelect").value;
-
-  loadImg(src, (img) => {
-    if(backgroundNode) backgroundNode.destroy();
-
-    const scale = Math.min(stage.width()/img.width, stage.height()/img.height);
-
-    backgroundNode = new Konva.Image({
-      x:(stage.width()-img.width*scale)/2,
-      y:(stage.height()-img.height*scale)/2,
-      image:img,
-      width:img.width*scale,
-      height:img.height*scale,
-      listening:false
-    });
-
-    layer.add(backgroundNode);
-    backgroundNode.moveToBottom();
-    layer.draw();
-
-    showMsg(`✅ Loaded base: <b>${src}</b>`);
+  const stage = new Konva.Stage({
+    container: 'stageWrap',
+    width: Math.max(200, window.innerWidth - sidebarWidth),
+    height: window.innerHeight
   });
-}
 
-loadBase(); // auto load default base
+  const layer = new Konva.Layer();
+  stage.add(layer);
 
-function placeStructure(){
-  const src = document.getElementById("largeSelect").value;
+  let selectedShape = null;
+  let backgroundNode = null;
 
-  loadImg(src, (img) => {
-    const width = 240;
-    const height = (img.height/img.width) * width;
+  function setMsg(text, type){
+    const el = document.getElementById('msg');
+    el.className = type === 'err' ? 'err' : (type === 'ok' ? 'ok' : '');
+    el.textContent = text || '';
+  }
 
-    const node = new Konva.Image({
-      x:300,
-      y:200,
-      image:img,
-      width:width,
-      height:height,
-      draggable:true,
-      name:"ATC Building"
-    });
+  function safeSrc(src){
+    // Helps if filenames ever contain spaces/special chars
+    return encodeURI(src);
+  }
 
-    node.setAttr("ratio", height/width);
+  function loadBase(){
+    const src = document.getElementById("baseSelect").value;
 
-    node.on("click tap", function(){
-      selectedShape = node;
-      document.getElementById("sizeSlider").disabled = false;
-      document.getElementById("sizeSlider").value = node.width();
-    });
+    const img = new Image();
+    img.onload = function(){
+      setMsg("✅ Loaded base: " + src, "ok");
 
-    layer.add(node);
-    layer.draw();
-    showMsg(`✅ Placed: <b>${src}</b>`);
-  });
-}
+      if(backgroundNode) backgroundNode.destroy();
 
-document.getElementById("sizeSlider").addEventListener("input", function(){
-  if(!selectedShape) return;
+      const scale = Math.min(stage.width()/img.width, stage.height()/img.height);
 
-  const newWidth = parseInt(this.value);
-  const ratio = selectedShape.getAttr("ratio");
-  selectedShape.width(newWidth);
-  selectedShape.height(newWidth * ratio);
-  layer.draw();
-});
-
-function rotateSelected(){
-  if(!selectedShape) return;
-  selectedShape.rotation(selectedShape.rotation()+90);
-  layer.draw();
-}
-
-function deleteSelected(){
-  if(!selectedShape) return;
-  selectedShape.destroy();
-  selectedShape = null;
-  document.getElementById("sizeSlider").disabled = true;
-  layer.draw();
-}
-
-function exportLayout(){
-  const items=[];
-  layer.getChildren().forEach(node=>{
-    if(node !== backgroundNode){
-      items.push({
-        name: node.name(),
-        x: node.x(),
-        y: node.y(),
-        rotation: node.rotation(),
-        width: node.width(),
-        height: node.height()
+      backgroundNode = new Konva.Image({
+        x:(stage.width()-img.width*scale)/2,
+        y:(stage.height()-img.height*scale)/2,
+        image:img,
+        width:img.width*scale,
+        height:img.height*scale,
+        listening:false
       });
-    }
+
+      layer.add(backgroundNode);
+      backgroundNode.moveToBottom();
+      layer.draw();
+    };
+
+    img.onerror = function(){
+      setMsg("❌ Could not load base: " + src + "\nMake sure the file exists in the SAME folder as index.html on GitHub Pages and the name/case matches exactly.", "err");
+    };
+
+    img.src = safeSrc(src);
+  }
+
+  function selectNode(node){
+    selectedShape = node;
+    const slider = document.getElementById("sizeSlider");
+    slider.disabled = false;
+    slider.value = Math.round(node.width());
+  }
+
+  function placeFromSelect(selectId){
+    const sel = document.getElementById(selectId);
+    const src = sel.value;
+    const label = sel.options[sel.selectedIndex].text;
+
+    const img = new Image();
+    img.onload = function(){
+      setMsg("✅ Placed: " + src, "ok");
+
+      const width = 240;
+      const height = (img.height / img.width) * width;
+
+      const node = new Konva.Image({
+        x: 300,
+        y: 200,
+        image: img,
+        width: width,
+        height: height,
+        draggable: true,
+        name: label
+      });
+
+      node.setAttr("ratio", height / width);
+
+      node.on("click tap", function(){
+        selectNode(node);
+      });
+
+      node.on("dragstart", function(){ selectNode(node); });
+
+      layer.add(node);
+      layer.draw();
+    };
+
+    img.onerror = function(){
+      setMsg("❌ Could not load: " + src + "\nThis usually means the image isn't in the same GitHub Pages folder as index.html, or the filename/case doesn't match.", "err");
+    };
+
+    img.src = safeSrc(src);
+  }
+
+  document.getElementById("sizeSlider").addEventListener("input", function(){
+    if(!selectedShape) return;
+
+    const newWidth = parseInt(this.value, 10);
+    const ratio = selectedShape.getAttr("ratio") || (selectedShape.height()/selectedShape.width());
+    selectedShape.width(newWidth);
+    selectedShape.height(newWidth * ratio);
+    layer.draw();
   });
 
-  const data=JSON.stringify(items,null,2);
-  const blob=new Blob([data],{type:"application/json"});
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(blob);
-  a.download="layout.json";
-  a.click();
-}
+  function rotateSelected(){
+    if(!selectedShape) return;
+    selectedShape.rotation(selectedShape.rotation() + 90);
+    layer.draw();
+  }
 
-window.addEventListener("resize", function(){
-  stage.width(window.innerWidth - 280);
-  stage.height(window.innerHeight);
+  function deleteSelected(){
+    if(!selectedShape) return;
+    selectedShape.destroy();
+    selectedShape = null;
+    document.getElementById("sizeSlider").disabled = true;
+    layer.draw();
+  }
+
+  function exportLayout(){
+    const items = [];
+    layer.getChildren().forEach(node => {
+      if(node !== backgroundNode){
+        items.push({
+          name: node.name(),
+          x: node.x(),
+          y: node.y(),
+          rotation: node.rotation(),
+          width: node.width(),
+          height: node.height()
+        });
+      }
+    });
+
+    const data = JSON.stringify(items, null, 2);
+    const blob = new Blob([data], {type:"application/json"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "layout.json";
+    a.click();
+  }
+
+  // auto load default base
   loadBase();
-});
+
+  window.addEventListener("resize", function(){
+    stage.width(Math.max(200, window.innerWidth - sidebarWidth));
+    stage.height(window.innerHeight);
+    loadBase();
+  });
 </script>
 
 </body>
